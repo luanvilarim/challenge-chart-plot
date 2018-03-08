@@ -23,9 +23,10 @@ class App extends React.Component {
     this.state = {
       value: '',
 	  data: undefined,
-	  series: undefined,
+	  series: [],
 	  range: new TimeRange([1326309060000, 1329941520000]),
 	  done: false,
+	  chart_value_bound: {max: 0, min: 0}
       /*
 {'type': 'start', 'timestamp': 1519780251000, 'select': ['min_response_time', 'max_response_time'], 'group': ['os', 'browser']}
 {'type': 'data', 'timestamp': 1519780251000, 'os': 'linux', 'browser': 'chrome', 'min_response_time': 0.1, 'max_response_time': 1.3}
@@ -60,12 +61,13 @@ class App extends React.Component {
 	var chart_data = [];
 	const data = {
 					name: "Challenge",
-					columns: ["time"],
+					columns: ["time", "value"],
 					points: []
 				};
-	var chart_series_jsx = "";
+	var begin, span_begin,end, span_end
+	var chart_max_value = 0, chart_min_value = 0;
 	var group_arr, select_arr = [];
-	var series = undefined;	
+	var series = [];	
 	var started = false, stopped = true;
     var line_arr = this.state.value.replace(/'/g, '"').match(/[^\r\n]+/g);
 	if (line_arr && line_arr.length > 0) {
@@ -85,14 +87,15 @@ class App extends React.Component {
 						else {
 							started = true;
 							stopped = !started;
+							begin = lineJSON.timestamp;
 							if (lineJSON.hasOwnProperty("select") && !lineJSON.select_arr instanceof Array) throw new Error("Expected \"select\" fields to be inside brackets i.e. ['field']. line " + line_index + 1);
 							else if (lineJSON.hasOwnProperty("group") && !lineJSON.group instanceof Array) throw new Error("Expected \"group\" fields to be inside brackets i.e. ['field']. line " + line_index + 1);
 							else {
 								select_arr = lineJSON.select;
 								group_arr = lineJSON.group;
-								var start_obj = {name: new Date(lineJSON.timestamp * 1000).getHours() + ":" + new Date(lineJSON.timestamp * 1000).getMinutes()};
-								data.points.push([lineJSON.timestamp]);
-								chart_data.push(start_obj);
+								//var start_obj = {name: new Date(lineJSON.timestamp * 1000).getHours() + ":" + new Date(lineJSON.timestamp * 1000).getMinutes()};
+								//data.points.push([lineJSON.timestamp]);
+								//chart_data.push(start_obj);
 								/*data.push({name: new Date(lineJSON.timestamp * 1000).getHours() + ":" + new Date(lineJSON.timestamp * 1000).getMinutes()},{name: 'Page C'},
 									  {name: 'Page E', uv: 1890, pv: 4800, amt: 2181},
 									  {name: 'Page F', uv: 2390, pv: 3800, amt: 2500},
@@ -107,9 +110,11 @@ class App extends React.Component {
 							else if (lineJSON.hasOwnProperty("end") && !(typeof lineJSON.end !== "number")) throw new Error("Expected \"end\" to be a number. line " + line_index + 1);
 							else { 
 								if (lineJSON.begin > lineJSON.end) throw new Error("Expected \"begin\" to be greater than \"end\". line " + line_index + 1);
-								chart_data.forEach( function (item, index) {
+								/*chart_data.forEach( function (item, index) {
 									if (item.name < lineJSON.begin || item.name > lineJSON.end) chart_data.splice(index, 1);//remove item from data
-								});
+								});*/
+								span_begin = lineJSON.begin;
+								span_end = lineJSON.end;
 							}
 						} else if (!started) throw new Error("Expected event with type = 'start'. line " + line_index + 1);
 						break;
@@ -119,50 +124,29 @@ class App extends React.Component {
 							var series_name = '';
 							for (var i = 0; i < group_arr.length; i++){
 								var group = group_arr[i]
-								if (lineJSON.hasOwnProperty(group) && typeof lineJSON[group] === 'string') {
+								if (lineJSON.hasOwnProperty(group) && typeof lineJSON[group] === 'string') { //get all groups names
 									series_name += lineJSON[group] + " ";
 								}
 							};
-							
 							for (var j = 0; j < select_arr.length; j++) {
-								var select = select_arr[j];
+								var select = select_arr[j]; //create serie name: group_name + select_name = serie_name
 								if (lineJSON.hasOwnProperty(select) && typeof lineJSON[select] === 'number') {
-									if (data.columns.includes(series_name + select)) {
-										var index = data.columns.indexOf(series_name + select);
-										var found = false;
-										for (var k = 0; k < data.points.length; k++) {
-											if (data.points[k].includes(lineJSON.timestamp)) {
-												data.points[k][index] = lineJSON[select];
-												found = true;
-												break;
-											}
+									var found = false;
+									for (var k = 0; k < chart_data.length; k++) {
+										if (chart_data[k].name === (series_name + select)) {
+											var found = true;
+											chart_data[k].points.push([lineJSON.timestamp, lineJSON[select]]);
 										}
-										if (!found) { //found column but not timestamp
-												var new_point = [lineJSON.timestamp];
-												new_point[index] = lineJSON[select];
-												data.points.push(new_point);
-										}
-									} else {
-										data.columns.push(series_name + select);
-										var index = data.columns.indexOf(series_name + select);
-										var found = false;
-										for (var l = 0; l < data.points.length; l++) {
-											if (data.points[l].includes(lineJSON.timestamp)) {
-												data.points[l][index] = lineJSON[select];
-												found = true;
-												break;
-											}
-										}
-										if (!found) {
-												var new_point = [lineJSON.timestamp];
-												new_point[index] = lineJSON[select];
-												data.points.push(new_point);
-											}
 									}
-									//data_obj[series_name + select] = lineJSON[select];
-								}
+									if (!found) {
+										chart_data.push({
+											name: (series_name + select),
+											columns: ["time", "value"],
+											points: [[lineJSON.timestamp, lineJSON[select]]]
+										});
+									}
+								} else throw new Error("Expected number value in"+ select + ". line " + line_index + 1);
 							}
-							//chart_data.push(data_obj);
 						} else if (!started) throw new Error("Expected event with type = 'start'. line " + line_index + 1);
 						break;
 					case 'stop':
@@ -170,22 +154,20 @@ class App extends React.Component {
 						else {
 							stopped = true;
 							started = !stopped;
-							for (var m = 0; m < data.points.length; m++) {
-								if (data.points[m].includes(lineJSON.timestamp)) {
-									found = true;
-									break;
+							end = lineJSON.timestamp;
+							
+							var min, max = 0;
+							for (var l = 0; l < chart_data.length; l++) {
+								series.push(new TimeSeries(chart_data[l])); //insert timeseries in array
+								max = series[series.length - 1].max("value"); //check chart min max values
+								min = series[series.length - 1].min("value");
+								if (max > chart_max_value){
+									chart_max_value = max;
+								}
+								if (min < chart_min_value){
+									chart_min_value = min;
 								}
 							}
-							if (!found) { //found column but not timestamp
-								var new_point = [lineJSON.timestamp];
-								data.points.push(new_point);
-							}
-							var series_raw = new TimeSeries(data);
-							var columns = series_raw.columns();
-							series = series_raw.fill( {fieldSpec: columns,
-													method: "linear",
-							limit: 3});
-							console.log(data);
 						}
 						break;
 					default:
@@ -202,25 +184,18 @@ class App extends React.Component {
 		alert("Please insert events before submitting");
 	}
 	
-	this.setState({ data: chart_data, series: series, done: true, range: series.range() });
+	this.setState({ data: chart_data, series: series, done: true, range: new TimeRange([begin,end]), chart_value_bound: {max: chart_max_value, min: chart_min_value} });
     event.preventDefault();
   }
   
   render() {
-	function renderSeries(done, s, r) {
+	function renderSeries(done, serie_arr) {
 		if (done){
-			console.log(s.columns())
-			return ( 
-				<ChartContainer timeRange={r} width={800}>
-					<ChartRow height="200">
-						<YAxis id="y" min={0.0} max={2.0} width="60" type="linear"/>
-						<Charts>
-							<LineChart axis="y" series={s} column={s.columns()} style={style} className="chart" />
-							<LineChart axis="y" series={s} column={s.columns()} style={style}/>
-						</Charts>
-					</ChartRow>
-				</ChartContainer>
-			);
+			var comp_arr = [];
+			for (var timeserie = 0; timeserie < serie_arr.length; timeserie++) {
+				comp_arr.push(<LineChart key={timeserie} axis="y" series={serie_arr[timeserie]} column={"time", "value"} style={style} />);
+			}
+			return comp_arr;
 		}
 	}
     return (
@@ -228,7 +203,14 @@ class App extends React.Component {
 		<div>
 			<textarea value={this.state.value} onChange={this.handleChange}/> 
 			<div className="chart-div">
-				{renderSeries(this.state.done, this.state.series, this.state.range)}
+				<ChartContainer timeRange={this.state.range} width={800} className="chart">
+					<ChartRow height="200">
+						<YAxis id="y" min={this.state.chart_value_bound.min} max={this.state.chart_value_bound.max} width="60" type="linear"/>
+						<Charts>
+						{renderSeries(this.state.done, this.state.series)}
+						</Charts>
+					</ChartRow>
+				</ChartContainer>
 			</div>
 			<div className="button-div">
 				<Button bsStyle="primary" className="button" onClick={this.handleSubmit}>Generate Chart</Button>

@@ -19,6 +19,7 @@ div {
 	background-color: whitesmoke;
 	position: absolute;
 	bottom: 0;
+	display:block;
 	height: 80px;
 }
 
@@ -30,8 +31,9 @@ div {
 
 .chart-div{
 	min-height: 100px;
+	display: block;
 	margin-top:2%;
 	margin-bottom:2%;
 	margin-left:2%;
-	overflow:auto;
+	overflow:scroll;
 }
