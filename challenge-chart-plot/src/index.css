@@ -3,3 +3,35 @@ body {
   padding: 0;
   font-family: sans-serif;
 }
+
+textarea {
+	width: 100%;
+	min-height: 150px;
+	max-height: 300px;
+	resize: vertical;
+}
+
+div {
+	width: 100%;
+}
+
+.button-div{
+	background-color: whitesmoke;
+	position: absolute;
+	bottom: 0;
+	height: 80px;
+}
+
+.button{
+	margin-top: 20px;
+	margin-bottom: 20px;
+	margin-left:30px;
+}
+
+.chart-div{
+	min-height: 100px;
+	margin-top:2%;
+	margin-bottom:2%;
+	margin-left:2%;
+	overflow:auto;
+}
