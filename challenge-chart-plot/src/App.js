@@ -91,8 +91,8 @@ class App extends React.Component {
 							else if (!lineJSON.hasOwnProperty("begin") && !lineJSON.hasOwnProperty("end")) throw new Error("Expected at least an \"begin\" or \"end\" type. line " + line_index + 1);
 							else { 
 								if (lineJSON.begin >= lineJSON.end) throw new Error("Expected \"end\" to be greater than \"begin\". line " + line_index + 1);
-								span_begin = lineJSON.begin;
-								span_end = lineJSON.end;
+								if (lineJSON.hasOwnProperty("begin")) span_begin = lineJSON.begin;
+								if (lineJSON.hasOwnProperty("end")) span_end = lineJSON.end;
 							}
 						} else if (!started) throw new Error("Expected event with type = 'start'. line " + line_index + 1);
 						break;
